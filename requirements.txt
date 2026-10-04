@@ -1,0 +1,47 @@
+# ---------------------------------------------------------------------------
+# AI Mine Design System - runtime dependencies
+# Install:  python -m pip install -r requirements.txt
+# ---------------------------------------------------------------------------
+
+# --- Core numerics and data handling -------------------------------------
+numpy>=1.26,<3.0
+pandas>=2.1,<4.0
+scipy>=1.11,<2.0            # spatial indexing, linear algebra, min-cut pit solver
+
+# --- Web API --------------------------------------------------------------
+fastapi>=0.110,<1.0
+uvicorn[standard]>=0.27,<1.0
+pydantic>=2.6,<3.0
+python-multipart>=0.0.9     # multipart upload endpoint (CSV or Excel)
+
+# --- Configuration --------------------------------------------------------
+python-dotenv>=1.0,<2.0
+
+# --- Input files ------------------------------------------------------------
+# collar/survey/assay/geology may each be a CSV or an Excel file; all four may
+# also point at one workbook (a sheet per kind, matched by name). .xls (the
+# legacy binary format) additionally needs xlrd, listed as optional below.
+openpyxl>=3.1,<4.0
+
+# --- LLM access (Hugging Face Inference Providers, OpenAI-compatible router)
+openai>=1.30                # used purely as an OpenAI-compatible HTTP client
+httpx>=0.26                 # local Ollama fallback transport
+
+# --- Reporting ------------------------------------------------------------
+jinja2>=3.1,<4.0            # HTML report templating (three.js/Chart.js are vendored)
+
+# --- Implicit geological modelling ---------------------------------------
+# GemPy builds the second, independent orebody model (report section 11) by
+# interpolating a scalar potential field through the ore contacts. The pipeline
+# runs without it: the section then states that the model was unavailable.
+gempy>=2024.1                ; python_version >= "3.10"
+
+# --- Optional geometry helpers -------------------------------------------
+# The pipeline implements its own triangulation, mesh validation, point-in-solid
+# tests and volume integration in numpy, so these are enhancements, not
+# requirements. Install them for independent cross-checks of mesh watertightness.
+trimesh>=4.0                ; python_version >= "3.9"
+
+# Legacy .xls (Excel 97-2003 binary format) support; .xlsx/.xlsm need only
+# openpyxl above. Skip this unless a source file actually arrives as .xls.
+xlrd>=2.0                   ; python_version >= "3.9"

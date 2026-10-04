@@ -1,0 +1,1397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ meta.project_name | default('Mine Design Report') }}</title>
+<style>
+  :root {
+    --bg: #f6f7f9;
+    --panel: #ffffff;
+    --ink: #1a1f26;
+    --muted: #5c6773;
+    --line: #dfe3e8;
+    --accent: #0f5c8c;
+    --accent-soft: #e7f1f7;
+    --warn: #b26a00;
+    --warn-soft: #fff4e0;
+    --err: #b3261e;
+    --err-soft: #fdeceb;
+    --ok: #1b6e3c;
+    --ok-soft: #e8f5ec;
+    --viewer-bg: #10151b;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 16px/1.65 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 0 24px 80px; }
+  header.masthead {
+    background: linear-gradient(160deg, #0f5c8c 0%, #0a3f61 100%);
+    color: #fff; padding: 44px 0 36px; margin-bottom: 28px;
+  }
+  header.masthead .wrap { padding-bottom: 0; }
+  header.masthead h1 { margin: 0 0 6px; font-size: 30px; letter-spacing: -.4px; }
+  header.masthead .sub { opacity: .85; font-size: 15px; }
+  .kicker {
+    text-transform: uppercase; letter-spacing: .12em; font-size: 11px;
+    font-weight: 700; opacity: .75; margin-bottom: 10px;
+  }
+  h2 {
+    font-size: 22px; margin: 42px 0 14px; padding-bottom: 8px;
+    border-bottom: 2px solid var(--line); letter-spacing: -.2px;
+  }
+  h3 { font-size: 17px; margin: 26px 0 10px; }
+  p { margin: 0 0 14px; }
+  .card {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+    padding: 20px 22px; margin: 16px 0;
+  }
+  .grid { display: grid; gap: 14px; }
+  .grid.cols-4 { grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
+  .grid.cols-3 { grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); }
+  .grid.cols-2 { grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); }
+  .stat {
+    background: var(--panel); border: 1px solid var(--line);
+    border-left: 4px solid var(--accent); border-radius: 8px; padding: 14px 16px;
+  }
+  .stat .label {
+    font-size: 11px; text-transform: uppercase; letter-spacing: .09em;
+    color: var(--muted); font-weight: 700;
+  }
+  .stat .value { font-size: 24px; font-weight: 650; margin-top: 4px; letter-spacing: -.5px; }
+  .stat .unit { font-size: 13px; color: var(--muted); font-weight: 400; }
+  .banner { border-radius: 8px; padding: 14px 18px; margin: 14px 0; border: 1px solid; }
+  .banner.warn { background: var(--warn-soft); border-color: #f0d0a0; color: #6b4200; }
+  .banner.err  { background: var(--err-soft);  border-color: #f3c3c0; color: #7a1912; }
+  .banner.ok   { background: var(--ok-soft);   border-color: #bfe0cb; color: #14522c; }
+  .banner.info { background: var(--accent-soft); border-color: #bcd8e8; color: #0b4a6f; }
+  .banner h3 { margin: 0 0 8px; font-size: 15px; }
+  .banner ul { margin: 6px 0 0; padding-left: 20px; }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+  th {
+    background: #eef2f5; font-size: 11px; text-transform: uppercase;
+    letter-spacing: .07em; color: var(--muted); position: sticky; top: 0; z-index: 2;
+  }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; font-family: var(--mono); }
+  .table-scroll { max-height: 460px; overflow: auto; border: 1px solid var(--line); border-radius: 8px; }
+  .table-tools { display: flex; gap: 10px; align-items: center; margin: 10px 0; flex-wrap: wrap; }
+  .table-tools input {
+    flex: 1 1 240px; padding: 8px 11px; border: 1px solid var(--line);
+    border-radius: 7px; font-size: 14px; font-family: inherit;
+  }
+  .table-tools .count { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .pill {
+    display: inline-block; padding: 2px 9px; border-radius: 999px;
+    font-size: 11px; font-weight: 700; letter-spacing: .04em;
+  }
+  .pill.ok { background: var(--ok-soft); color: var(--ok); }
+  .pill.bad { background: var(--err-soft); color: var(--err); }
+  .pill.info { background: var(--accent-soft); color: var(--accent); }
+  .pill.warn { background: var(--warn-soft); color: var(--warn); }
+  #viewer-shell {
+    position: relative; background: var(--viewer-bg); border-radius: 10px;
+    overflow: hidden; border: 1px solid #253040;
+  }
+  #viewer-canvas { width: 100%; height: 620px; display: block; }
+  #layer-panel {
+    /* left clear of the axis gizmo box (92px + 12px gap) parked bottom-left */
+    position: absolute; top: 12px; left: 12px; width: 262px;
+    max-height: calc(100% - 24px - 116px);
+    overflow: auto; background: rgba(16,21,27,.9); border: 1px solid #2b3947;
+    border-radius: 9px; padding: 12px 14px; color: #dbe3ea; font-size: 13px;
+    backdrop-filter: blur(7px);
+  }
+  #layer-panel h4 {
+    margin: 12px 0 6px; font-size: 10px; text-transform: uppercase;
+    letter-spacing: .11em; color: #7f96ab;
+  }
+  #layer-panel h4:first-child { margin-top: 0; }
+  #layer-panel label { display: flex; align-items: center; gap: 8px; padding: 3px 0; cursor: pointer; }
+  #layer-panel .meta { color: #7f96ab; font-size: 11px; margin-left: auto; font-family: var(--mono); }
+  #view-controls {
+    position: absolute; top: 12px; right: 12px; background: rgba(16,21,27,.9);
+    border: 1px solid #2b3947; border-radius: 9px; padding: 10px 12px;
+    color: #dbe3ea; font-size: 13px; display: flex; flex-direction: column; gap: 7px;
+    backdrop-filter: blur(7px);
+  }
+  #view-controls button, #view-controls select {
+    background: #1c2733; color: #dbe3ea; border: 1px solid #33445a;
+    border-radius: 6px; padding: 6px 10px; font-size: 12px; cursor: pointer;
+    font-family: inherit;
+  }
+  #view-controls button:hover { background: #26364a; }
+  #legend {
+    position: absolute; bottom: 12px; right: 12px; background: rgba(16,21,27,.9);
+    border: 1px solid #2b3947; border-radius: 9px; padding: 10px 12px;
+    color: #dbe3ea; font-size: 11px; backdrop-filter: blur(7px);
+  }
+  #legend .row { display: flex; align-items: center; gap: 7px; margin: 2px 0; }
+  #legend .swatch { width: 15px; height: 11px; border-radius: 2px; }
+  #axis-gizmo {
+    position: absolute; bottom: 12px; left: 12px; width: 92px; height: 92px;
+    background: rgba(16,21,27,.9); border: 1px solid #2b3947; border-radius: 9px;
+    backdrop-filter: blur(7px);
+  }
+  #axis-gizmo canvas { width: 100%; height: 100%; display: block; }
+  .chart-box { position: relative; height: 320px; }
+  .chart-box.tall { height: 380px; }
+  .muted { color: var(--muted); font-size: 14px; }
+  .toc { columns: 2; column-gap: 30px; font-size: 14px; }
+  .toc a { color: var(--accent); text-decoration: none; display: block; padding: 3px 0; }
+  .toc a:hover { text-decoration: underline; }
+  footer {
+    margin-top: 56px; padding-top: 22px; border-top: 1px solid var(--line);
+    color: var(--muted); font-size: 13px;
+  }
+  code { font-family: var(--mono); font-size: 13px; background: #eef2f5; padding: 1px 5px; border-radius: 4px; }
+  .prose { white-space: pre-wrap; }
+  @media print {
+    #viewer-shell, .table-tools { break-inside: avoid; }
+    header.masthead { background: #0f5c8c !important; -webkit-print-color-adjust: exact; }
+  }
+</style>
+</head>
+<body>
+
+<header class="masthead">
+  <div class="wrap">
+    <div class="kicker">Open-pit resource and pit-limit study</div>
+    <h1>{{ meta.project_name | default('Mine Design Report') }}</h1>
+    <div class="sub">
+      Generated {{ meta.generated_at }} &middot; pipeline v{{ meta.version }}
+      &middot; {{ summary.n_holes | default(0) }} drillholes
+      &middot; commodity: {{ economics.commodity | default('n/a') }}
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- ================= decision provenance ================= -->
+  <div class="banner {{ 'ok' if provenance.llm_used else 'warn' }}">
+    <h3>How the judgement steps in this run were made</h3>
+    {% if provenance.llm_used %}
+      <p style="margin:0">
+        The two judgement calls were made by a language model
+        (<code>{{ provenance.call_1_source }}</code> for the cutoff, domaining and estimation
+        method; <code>{{ provenance.call_2_source }}</code> for pit economics and this narrative).
+        Every number in the tables, charts and 3D layers below is computed by the deterministic
+        pipeline, not by the model. Those two decisions still require review by a competent person.
+      </p>
+    {% else %}
+      <p style="margin:0">
+        <strong>No language model was reached during this run.</strong> The cutoff grade,
+        the mineralised rock-type set, the variogram and estimator choice, and the pit
+        economics all come from coded geostatistical convention and neutral default costs.
+        They are not engineering judgements and must not be read as such.
+      </p>
+    {% endif %}
+  </div>
+
+  {% if flags %}
+  <div class="banner {{ 'err' if flags | selectattr('severity','equalto','error') | list else 'warn' }}">
+    <h3>Data-quality flags raised during ingestion ({{ flags | length }})</h3>
+    <ul>
+      {% for f in flags %}
+      <li>
+        <span class="pill {{ 'bad' if f.severity == 'error' else ('warn' if f.severity == 'warning' else 'info') }}">{{ f.severity }}</span>
+        <strong>{{ f.file }}</strong> &mdash; {{ f.message }}{% if f.count %} ({{ f.count }} records){% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
+  <!-- ================= headline numbers ================= -->
+  <h2 id="headline">Headline results</h2>
+  <div class="grid cols-4">
+    <div class="stat"><div class="label">Ore in pit</div>
+      <div class="value">{{ (summary.pit_ore_tonnes / 1e6) | fmt(2) }}<span class="unit"> Mt</span></div></div>
+    <div class="stat"><div class="label">Mean ore grade</div>
+      <div class="value">{{ summary.pit_mean_grade | fmt(3) }}<span class="unit"> {{ summary.grade_unit | default('g/t') }}</span></div></div>
+    <div class="stat"><div class="label">Strip ratio</div>
+      <div class="value">{{ summary.pit_strip_ratio | fmt(2) }}<span class="unit"> w:o</span></div></div>
+    <div class="stat"><div class="label">Contained metal</div>
+      <div class="value">{{ (summary.pit_contained_oz / 1000) | fmt(1) }}<span class="unit"> koz</span></div></div>
+    <div class="stat"><div class="label">Orebody volume</div>
+      <div class="value">{{ (validation.volume_m3 / 1e6) | fmt(3) }}<span class="unit"> Mm&sup3;</span></div></div>
+    <div class="stat"><div class="label">Cutoff grade</div>
+      <div class="value">{{ summary.cutoff_grade | fmt(3) }}<span class="unit"> {{ summary.grade_unit | default('g/t') }}</span></div></div>
+    <div class="stat"><div class="label">Pit depth</div>
+      <div class="value">{{ summary.pit_depth_m | fmt(0) }}<span class="unit"> m</span></div></div>
+    <div class="stat"><div class="label">Undiscounted cashflow</div>
+      <div class="value">{{ (summary.pit_cashflow / 1e6) | fmt(1) }}<span class="unit"> M</span></div></div>
+  </div>
+
+  <h2 id="contents">Contents</h2>
+  <div class="card toc">
+    <a href="#exec">1. Executive summary</a>
+    <a href="#method">2. Methodology</a>
+    <a href="#quality">3. Data quality</a>
+    <a href="#geometry">4. Orebody geometry and solid validation</a>
+    <a href="#stats">5. Grade statistics</a>
+    <a href="#domain">6. Domaining and cutoff</a>
+    <a href="#variography">7. Variography and estimation</a>
+    <a href="#blockmodel">8. Block model</a>
+    <a href="#pit">9. Pit optimization</a>
+    <a href="#benches">10. Pit and bench design</a>
+    <a href="#viewer">11. Interactive 3D model</a>
+    <a href="#gempy">12. GemPy model</a>
+    <a href="#tables">13. Data tables</a>
+    <a href="#risks">14. Risks, limitations and recommendations</a>
+  </div>
+
+  <!-- ================= narrative ================= -->
+  <h2 id="exec">1. Executive summary</h2>
+  <div class="card prose">{{ report.executive_summary }}</div>
+
+  <h2 id="method">2. Methodology</h2>
+  <div class="card prose">{{ report.methodology }}</div>
+
+  <h2 id="quality">3. Data quality</h2>
+  <div class="card prose">{{ report.data_quality_notes }}</div>
+  <div class="grid cols-4">
+    <div class="stat"><div class="label">Drillholes</div><div class="value">{{ summary.n_holes }}</div></div>
+    <div class="stat"><div class="label">Assay intervals</div><div class="value">{{ '{:,}'.format(summary.n_assay_intervals | default(0)) }}</div></div>
+    <div class="stat"><div class="label">Composites</div><div class="value">{{ '{:,}'.format(summary.n_composites | default(0)) }}</div></div>
+    <div class="stat"><div class="label">Composite length</div><div class="value">{{ summary.composite_length | fmt(2) }}<span class="unit"> m</span></div></div>
+  </div>
+
+  <h2 id="geometry">4. Orebody geometry and solid validation</h2>
+  <div class="card prose">{{ report.orebody_geometry }}</div>
+  <h3>Solid validation report</h3>
+  <div class="table-scroll">
+    <table>
+      <thead><tr><th>Check</th><th>Result</th><th>Count</th><th>Detail</th></tr></thead>
+      <tbody>
+      {% for name, check in validation.checks.items() %}
+        <tr>
+          <td><strong>{{ name.replace('_', ' ') | title }}</strong></td>
+          <td><span class="pill {{ 'ok' if check.passed else 'bad' }}">{{ 'pass' if check.passed else 'fail' }}</span></td>
+          <td class="num">{{ check.count }}</td>
+          <td class="muted">{{ check.detail }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="grid cols-4" style="margin-top:14px">
+    <div class="stat"><div class="label">Volume</div><div class="value">{{ validation.volume_m3 | fmt(0) }}<span class="unit"> m&sup3;</span></div></div>
+    <div class="stat"><div class="label">Surface area</div><div class="value">{{ validation.surface_area_m2 | fmt(0) }}<span class="unit"> m&sup2;</span></div></div>
+    <div class="stat"><div class="label">Vertices</div><div class="value">{{ '{:,}'.format(validation.n_vertices | default(0)) }}</div></div>
+    <div class="stat"><div class="label">Triangles</div><div class="value">{{ '{:,}'.format(validation.n_faces | default(0)) }}</div></div>
+  </div>
+
+  <h2 id="stats">5. Grade statistics</h2>
+  <div class="card prose">{{ report.grade_statistics_discussion }}</div>
+  <div class="grid cols-2">
+    <div class="card">
+      <h3>Grade histogram with fitted distribution</h3>
+      <div class="chart-box"><canvas id="chart-histogram"></canvas></div>
+    </div>
+    <div class="card">
+      <h3>Cumulative frequency distribution</h3>
+      <div class="chart-box"><canvas id="chart-cumulative"></canvas></div>
+    </div>
+  </div>
+  <div class="card">
+    <h3>Effect of the top cut</h3>
+    <div class="chart-box"><canvas id="chart-topcut"></canvas></div>
+  </div>
+  <h3>Descriptive statistics</h3>
+  <div class="table-scroll">
+    <table>
+      <thead><tr><th>Statistic</th><th class="num">Before top cut</th><th class="num">After top cut</th></tr></thead>
+      <tbody>
+      {% for row in stats.rows %}
+        <tr><td>{{ row.label }}</td><td class="num">{{ row.before }}</td><td class="num">{{ row.after }}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <h2 id="domain">6. Domaining and cutoff</h2>
+  <div class="card prose">{{ report.domaining_rationale }}</div>
+  <div class="grid cols-4">
+    <div class="stat"><div class="label">Cutoff grade</div><div class="value">{{ summary.cutoff_grade | fmt(3) }}</div></div>
+    <div class="stat"><div class="label">Ore intervals</div><div class="value">{{ '{:,}'.format(summary.n_ore_intervals | default(0)) }}</div></div>
+    <div class="stat"><div class="label">Mineralised codes</div><div class="value" style="font-size:16px">{{ summary.ore_rock_types | join(', ') }}</div></div>
+    <div class="stat"><div class="label">Boundary source</div><div class="value" style="font-size:16px">{{ summary.boundary_source }}</div></div>
+  </div>
+
+  <h2 id="variography">7. Variography and estimation</h2>
+  <div class="card prose">{{ summary.estimation_rationale }}</div>
+  <div class="card">
+    <h3>Experimental variograms and fitted models</h3>
+    <div class="chart-box tall"><canvas id="chart-variogram"></canvas></div>
+  </div>
+  <div class="grid cols-4">
+    <div class="stat"><div class="label">Model</div><div class="value" style="font-size:18px">{{ summary.variogram_model }}</div></div>
+    <div class="stat"><div class="label">Range</div><div class="value">{{ summary.variogram_range | fmt(0) }}<span class="unit"> m</span></div></div>
+    <div class="stat"><div class="label">Nugget</div><div class="value">{{ summary.variogram_nugget | fmt(4) }}</div></div>
+    <div class="stat"><div class="label">Estimator</div><div class="value" style="font-size:18px">{{ summary.estimation_method }}</div></div>
+  </div>
+  {% if summary.cross_validation and summary.cross_validation.performed %}
+  <h3>Leave-one-out cross validation</h3>
+  <div class="grid cols-4">
+    <div class="stat"><div class="label">Points tested</div><div class="value">{{ summary.cross_validation.n_tested }}</div></div>
+    <div class="stat"><div class="label">Mean error</div><div class="value">{{ summary.cross_validation.mean_error | fmt(4) }}</div></div>
+    <div class="stat"><div class="label">RMSE</div><div class="value">{{ summary.cross_validation.rmse | fmt(4) }}</div></div>
+    <div class="stat"><div class="label">Correlation</div><div class="value">{{ summary.cross_validation.correlation | fmt(3) }}</div></div>
+  </div>
+  {% endif %}
+
+  <h2 id="blockmodel">8. Block model</h2>
+  <div class="card prose">{{ report.block_model_summary }}</div>
+  <div class="grid cols-4">
+    <div class="stat"><div class="label">Blocks</div><div class="value">{{ '{:,}'.format(summary.n_blocks_total | default(0)) }}</div></div>
+    <div class="stat"><div class="label">Ore blocks</div><div class="value">{{ '{:,}'.format(summary.n_blocks_ore | default(0)) }}</div></div>
+    <div class="stat"><div class="label">Block size</div><div class="value" style="font-size:18px">{{ summary.block_size_label }}</div></div>
+    <div class="stat"><div class="label">In-situ resource</div><div class="value">{{ (summary.resource_tonnes / 1e6) | fmt(2) }}<span class="unit"> Mt</span></div></div>
+  </div>
+  <div class="card">
+    <h3>Grade-tonnage curve</h3>
+    <div class="chart-box tall"><canvas id="chart-gradetonnage"></canvas></div>
+  </div>
+
+  <h2 id="pit">9. Pit optimization</h2>
+  <div class="card prose">{{ report.pit_optimization_discussion }}</div>
+
+  <h3>Economic assumptions</h3>
+  <div class="banner info">
+    <p style="margin:0">Every parameter below is listed with its origin. Values marked
+    <span class="pill warn">assumed_default</span> are proposals, not costed inputs, and
+    the pit result moves with them.</p>
+  </div>
+  <div class="table-scroll">
+    <table>
+      <thead><tr><th>Parameter</th><th class="num">Value</th><th>Source</th><th>Basis</th></tr></thead>
+      <tbody>
+      {% for a in assumptions %}
+        <tr>
+          <td><strong>{{ a.parameter.replace('_', ' ') }}</strong></td>
+          <td class="num">{{ a.value }}</td>
+          <td><span class="pill {{ 'ok' if a.source == 'user_supplied' else 'warn' }}">{{ a.source }}</span></td>
+          <td class="muted">{{ a.basis }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Ultimate pit result</h3>
+  <div class="grid cols-4">
+    <div class="stat"><div class="label">Ore tonnes</div><div class="value">{{ (summary.pit_ore_tonnes / 1e6) | fmt(2) }}<span class="unit"> Mt</span></div></div>
+    <div class="stat"><div class="label">Waste tonnes</div><div class="value">{{ (summary.pit_waste_tonnes / 1e6) | fmt(2) }}<span class="unit"> Mt</span></div></div>
+    <div class="stat"><div class="label">Strip ratio</div><div class="value">{{ summary.pit_strip_ratio | fmt(2) }}</div></div>
+    <div class="stat"><div class="label">Internal cutoff</div><div class="value">{{ summary.internal_cutoff | fmt(3) }}</div></div>
+    <div class="stat"><div class="label">Recovered metal</div><div class="value">{{ (summary.pit_recovered_oz / 1000) | fmt(1) }}<span class="unit"> koz</span></div></div>
+    <div class="stat"><div class="label">Slope requested</div><div class="value">{{ summary.slope_requested | fmt(1) }}<span class="unit"> deg</span></div></div>
+    <div class="stat"><div class="label">Slope achieved</div><div class="value">{{ summary.slope_achieved | fmt(1) }}<span class="unit"> deg</span></div></div>
+    <div class="stat"><div class="label">Pit floor RL</div><div class="value">{{ summary.pit_floor_rl | fmt(0) }}<span class="unit"> m</span></div></div>
+  </div>
+  {% if summary.slope_warning %}
+  <div class="banner warn"><p style="margin:0">{{ summary.slope_warning }}</p></div>
+  {% endif %}
+
+  <div class="card">
+    <h3>Nested pit shells by revenue factor</h3>
+    <p class="muted">Inner shells are the tonnes that still pay at a lower price, which is
+    how the pit's sensitivity to price is read.</p>
+    <div class="chart-box tall"><canvas id="chart-shells"></canvas></div>
+  </div>
+
+  <!-- ================= pit and bench design ================= -->
+  <h2 id="benches">10. Pit and bench design</h2>
+
+  {% if bench_schedule.n_benches %}
+  <div class="banner info">
+    <p style="margin:0">
+      The ultimate pit above is an economic <strong>shell</strong>: the maximum-value set of
+      blocks, with no benches, catch berms or access built in yet. The schedule below slices
+      that shell at the block model's own bench height, so every number on it &mdash; bench
+      count, RL, footprint, volume &mdash; is read directly off the optimizer's result, not
+      assumed. What it does <strong>not</strong> include is explained further down.
+    </p>
+  </div>
+
+  <div class="grid cols-4">
+    <div class="stat"><div class="label">Number of benches</div>
+      <div class="value">{{ bench_schedule.n_benches }}</div></div>
+    <div class="stat"><div class="label">Bench height</div>
+      <div class="value">{{ bench_schedule.bench_height_m | fmt(1) }}<span class="unit"> m</span></div></div>
+    <div class="stat"><div class="label">Crest RL</div>
+      <div class="value">{{ bench_schedule.crest_rl | fmt(0) }}<span class="unit"> m</span></div></div>
+    <div class="stat"><div class="label">Floor RL</div>
+      <div class="value">{{ bench_schedule.floor_rl | fmt(0) }}<span class="unit"> m</span></div></div>
+    <div class="stat"><div class="label">Pit depth</div>
+      <div class="value">{{ bench_schedule.depth_m | fmt(0) }}<span class="unit"> m</span></div></div>
+    <div class="stat"><div class="label">Overall slope, requested</div>
+      <div class="value">{{ summary.slope_requested | fmt(1) }}<span class="unit"> deg</span></div></div>
+    <div class="stat"><div class="label">Overall slope, achieved</div>
+      <div class="value">{{ summary.slope_achieved | fmt(1) }}<span class="unit"> deg</span></div></div>
+    <div class="stat"><div class="label">Narrowest bench</div>
+      <div class="value">{{ bench_schedule.narrowest_half_width_m | fmt(0) }}<span class="unit"> m half-width</span></div></div>
+  </div>
+
+  <h3>Bench schedule</h3>
+  <p class="muted">Bench 1 is the crest, the first bench mined; the highest-numbered bench is
+  the pit floor. Footprint area and volume are exact cell counts from the block model, not a
+  smoothed estimate &mdash; they are the same numbers behind the "Ultimate pit result" cards
+  above, just broken out bench by bench.</p>
+  <div class="table-scroll" style="max-height:420px">
+    <table>
+      <thead>
+        <tr>
+          <th>Bench</th><th class="num">Floor RL</th><th class="num">Crest RL</th>
+          <th class="num">Footprint m&sup2;</th><th class="num">Min half-width m</th>
+          <th class="num">Volume m&sup3;</th><th class="num">Tonnes</th>
+          <th class="num">Cumulative Mt</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for b in bench_schedule.benches %}
+        <tr>
+          <td>{{ b.bench }}</td>
+          <td class="num">{{ '{:,.1f}'.format(b.floor_rl) }}</td>
+          <td class="num">{{ '{:,.1f}'.format(b.crest_rl) }}</td>
+          <td class="num">{{ '{:,.0f}'.format(b.footprint_area_m2) }}</td>
+          <td class="num">{{ '{:,.0f}'.format(b.min_half_width_m) }}</td>
+          <td class="num">{{ '{:,.0f}'.format(b.volume_m3) }}</td>
+          <td class="num">{{ '{:,.0f}'.format(b.tonnes) }}</td>
+          <td class="num">{{ '{:,.2f}'.format(b.cumulative_tonnes / 1e6) }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr>
+          <td>Total</td><td></td><td></td><td></td><td></td>
+          <td class="num">{{ '{:,.0f}'.format(bench_schedule.total_volume_m3) }}</td>
+          <td class="num">{{ '{:,.0f}'.format(bench_schedule.total_tonnes) }}</td>
+          <td></td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+
+  <h3>Bench stability: what this report can and cannot tell you</h3>
+  <div class="banner warn">
+    <p style="margin:0">
+      <strong>No stability figure is stated below, on purpose.</strong> A real batter angle,
+      catch-berm width, or Factor of Safety is a geotechnical design output, not something
+      that follows from the block model. It needs data this pipeline was never given: rock
+      mass rating (RQD, joint spacing), discontinuity orientations relative to each wall,
+      intact and defect shear strength, and groundwater conditions. Publishing a specific
+      number here without that data would be a guess dressed up as an engineering result,
+      which is worse than not stating one. Have a geotechnical engineer assess stability from
+      site data before any wall angle steeper or shallower than what is shown is relied on.
+    </p>
+  </div>
+  <div class="card">
+    <p style="margin-top:0">
+      What the model <em>does</em> constrain is the geometric relationship between bench
+      height, batter (face) angle and berm (catch bench) width that any stability design has
+      to satisfy to deliver the <strong>{{ summary.slope_achieved | fmt(1) }} degree</strong>
+      overall slope the pit was actually optimized at:
+    </p>
+    <p style="text-align:center;font-size:15px;margin:18px 0">
+      <code>overall_slope = atan( bench_height &divide; (bench_height &divide; tan(batter) + berm) )</code>
+    </p>
+    <p style="margin-bottom:0">
+      A steeper batter needs a wider berm to hold the same overall angle, and vice versa; a
+      geotechnical assessment picks the batter, and this formula then fixes the berm (or the
+      reverse). The <strong>narrowest bench</strong> above ({{ bench_schedule.narrowest_half_width_m | fmt(0) }} m
+      half-width) is where that trade-off is tightest and the first place a stability review
+      should look, since a berm that fits comfortably on a wide bench may not fit at all where
+      the pit pinches in.
+    </p>
+  </div>
+  {% else %}
+  <div class="banner warn">
+    <p style="margin:0">The ultimate pit is empty at these economics, so there is no bench
+    schedule to report.</p>
+  </div>
+  {% endif %}
+
+  <!-- ================= 3D viewer ================= -->
+  <h2 id="viewer">11. Interactive 3D model</h2>
+  <p class="muted">Drag to orbit, scroll to zoom, right-drag to pan. Every spatial figure is a
+  toggleable layer in this one scene. Section view locks the camera to a single drill
+  section, matching a conventional cross-section.</p>
+  <div id="viewer-shell">
+    <canvas id="viewer-canvas"></canvas>
+    <div id="layer-panel"></div>
+    <div id="view-controls">
+      <button data-view="iso">Isometric</button>
+      <button data-view="plan">Plan</button>
+      <button data-view="section">Section</button>
+      <select id="section-select"></select>
+      <button data-view="fit">Fit all</button>
+      <select id="hole-color">
+        <option value="grade">Colour holes by grade</option>
+        <option value="rock">Colour holes by rock type</option>
+      </select>
+    </div>
+    <div id="legend"></div>
+    <div id="axis-gizmo"><canvas id="gizmo-canvas"></canvas></div>
+  </div>
+
+  <!-- ================= tables ================= -->
+  <!-- ================= GemPy implicit model ================= -->
+  <h2 id="gempy">12. GemPy model</h2>
+
+  {% if not gempy.enabled %}
+  <div class="banner info">
+    <p style="margin:0">The implicit model was not run for this report
+    (<code>--no-gempy</code>).</p>
+  </div>
+  {% elif not gempy.available %}
+  <div class="banner warn">
+    <h3>The implicit model could not be built</h3>
+    <p style="margin:0">{{ gempy.error }}</p>
+  </div>
+  {% else %}
+
+  <div class="banner info">
+    <h3>A second orebody model, built by GemPy &mdash; no language model involved</h3>
+    <p style="margin:0">
+      Section&nbsp;4 above builds the orebody <em>explicitly</em>: an ore envelope is
+      digitised on each drill section and the sections are lofted into a wireframe, and
+      the cutoff and boundary points behind it come from LLM Call&nbsp;1. This section
+      builds it <em>implicitly</em> and entirely deterministically. GemPy
+      {{ gempy.summary.version }} interpolates a scalar potential field through the ore
+      contacts, constrained by orientations fitted to those same contacts, and the
+      orebody is an isosurface of that field. No cutoff is digitised, no boundary is
+      drawn by hand, and nothing here is decided by a model that can hallucinate &mdash;
+      it is a co-kriging system solved on the drilling.
+    </p>
+  </div>
+
+  {% for w in gempy.warnings %}
+  <div class="banner warn"><p style="margin:0">{{ w }}</p></div>
+  {% endfor %}
+
+  <h3>Implicit model result</h3>
+  <div class="grid cols-4">
+    <div class="stat"><div class="label">Implicit volume</div>
+      <div class="value">{{ (gempy.summary.ore_volume_m3 / 1e6) | fmt(3) }}<span class="unit"> Mm&sup3;</span></div></div>
+    <div class="stat"><div class="label">Implicit tonnage</div>
+      <div class="value">{{ (gempy.summary.ore_tonnes / 1e6) | fmt(2) }}<span class="unit"> Mt</span></div></div>
+    <div class="stat"><div class="label">Ore intercepts captured</div>
+      <div class="value">{{ gempy.summary.ore_capture_pct | fmt(1) }}<span class="unit"> %</span></div></div>
+    <div class="stat"><div class="label">Contact points used</div>
+      <div class="value">{{ '{:,}'.format(gempy.summary.n_contact_points | default(0)) }}</div></div>
+    <div class="stat"><div class="label">Orientations fitted</div>
+      <div class="value">{{ gempy.summary.n_orientations }}</div></div>
+    <div class="stat"><div class="label">Interpolation grid</div>
+      <div class="value" style="font-size:17px">{{ gempy.summary.resolution | join(' &times; ') | safe }}</div></div>
+    <div class="stat"><div class="label">Voxel volume</div>
+      <div class="value">{{ gempy.summary.cell_volume_m3 | fmt(0) }}<span class="unit"> m&sup3;</span></div></div>
+    <div class="stat"><div class="label">Solve time</div>
+      <div class="value">{{ gempy.summary.compute_seconds | fmt(1) }}<span class="unit"> s</span></div></div>
+  </div>
+
+  <div class="banner {{ 'ok' if gempy.summary.ore_capture_pct and gempy.summary.ore_capture_pct >= 80 else 'warn' }}">
+    <p style="margin:0">
+      <strong>Capture rate is the honest test of an implicit surface.</strong>
+      {{ gempy.summary.ore_capture_pct | fmt(1) }}% of the logged ore intercepts fall
+      inside the modelled solid. A potential field always produces a smooth, convincing
+      surface; whether that surface actually contains the ore is a separate question, and
+      this is the number that answers it.
+    </p>
+  </div>
+
+  {% if gempy.comparison %}
+  <h3>Implicit model against the section wireframe</h3>
+  <div class="table-scroll">
+    <table>
+      <thead><tr><th>Model</th><th>Method</th><th class="num">Volume m&sup3;</th><th class="num">Difference</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>Section wireframe</strong></td>
+          <td class="muted">explicit &mdash; digitised outlines lofted between sections (LLM Call 1)</td>
+          <td class="num">{{ '{:,.0f}'.format(gempy.comparison.wireframe_volume_m3) }}</td>
+          <td class="num">&mdash;</td>
+        </tr>
+        <tr>
+          <td><strong>GemPy implicit</strong></td>
+          <td class="muted">implicit &mdash; potential field through contacts (no LLM)</td>
+          <td class="num">{{ '{:,.0f}'.format(gempy.comparison.gempy_volume_m3) }}</td>
+          <td class="num">{{ '{:+,.1f}'.format(gempy.comparison.difference_pct) }}%</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="banner {{ 'ok' if gempy.comparison.difference_pct | abs < 25 else 'warn' }}">
+    <p style="margin:0">
+      The two models are built from the same drilling by methods that share no code and
+      no assumptions, so agreement is evidence and disagreement is a question worth
+      asking. They differ by
+      <strong>{{ '{:+,.1f}'.format(gempy.comparison.difference_pct) }}%</strong>.
+      {% if gempy.comparison.difference_pct | abs < 25 %}
+      That is close enough to treat the orebody geometry as reasonably constrained by the
+      data rather than by either method.
+      {% else %}
+      That is a wide gap: the geometry is being driven by the modelling choice as much as
+      by the drilling, and the domain interpretation should be reviewed before either
+      volume is relied on.
+      {% endif %}
+    </p>
+  </div>
+  {% endif %}
+
+  {% if gempy.sections %}
+  <h3>Sections through the implicit model</h3>
+  <p class="muted">The GemPy solid is shaded; the dashed outline is the section wireframe
+  from Call&nbsp;1, drawn on the same axes so the two can be compared directly.</p>
+  {% for s in gempy.sections %}
+  <div class="card" style="padding:0;overflow-x:auto">{{ s.svg | safe }}</div>
+  {% endfor %}
+  {% endif %}
+
+  {% if gempy.rose %}
+  <h3>Fitted orientations</h3>
+  <div class="grid cols-2">
+    <div class="card" style="padding:0;overflow-x:auto">{{ gempy.rose | safe }}</div>
+    <div class="card">
+      <p class="muted" style="margin-top:0">
+        Every orientation is a plane fitted to the nearest contact points and then turned
+        to face away from the ore. On a closed body the normals must reverse between the
+        top and the bottom of the lens, and that split &mdash; some pointing up, some down
+        &mdash; is what tells the interpolator it is wrapping a body rather than following
+        a single sheet.
+      </p>
+      <div class="table-scroll" style="max-height:260px">
+        <table>
+          <thead><tr><th class="num">Dip</th><th class="num">Dip azimuth</th><th>Normal</th></tr></thead>
+          <tbody>
+          {% for o in gempy.orientations %}
+            <tr>
+              <td class="num">{{ o.dip }}&deg;</td>
+              <td class="num">{{ o.azimuth }}&deg;</td>
+              <td><span class="pill {{ 'info' if o.points_up else 'warn' }}">{{ 'up' if o.points_up else 'down' }}</span></td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="banner info">
+    <p style="margin:0">
+      The implicit surface is also a layer in the 3D viewer above, under
+      <strong>gempy model</strong> &mdash; switch it on alongside the orebody solid to see
+      where the two models diverge in three dimensions.
+    </p>
+  </div>
+
+  <div class="banner warn">
+    <p style="margin:0">
+      <strong>What this does not settle.</strong> An implicit model interpolates; it does
+      not know geology. It has no fault or vein-set structure, honours no domain
+      boundaries beyond the contacts it was given, and extrapolates confidently into
+      ground with no drilling. It inherits the ore/waste flag it was handed, so the cutoff
+      that defines a contact is still the cutoff from Call&nbsp;1 &mdash; what GemPy
+      removes from the loop is the <em>shape</em>, not the threshold.
+    </p>
+  </div>
+
+  {% endif %}
+
+  <h2 id="tables">13. Data tables</h2>
+
+  <h3>Composited and top-cut data file</h3>
+  <div class="table-tools">
+    <input type="text" placeholder="Filter composites (hole id, rock type, any value)..." data-filter="composites">
+    <span class="count" data-count="composites"></span>
+  </div>
+  <div class="table-scroll"><table id="table-composites"><thead></thead><tbody></tbody></table></div>
+
+  <h3>Block model</h3>
+  <div class="table-tools">
+    <input type="text" placeholder="Filter blocks (coordinates, grade, rock type)..." data-filter="blocks">
+    <span class="count" data-count="blocks"></span>
+  </div>
+  <div class="table-scroll"><table id="table-blocks"><thead></thead><tbody></tbody></table></div>
+
+  <h2 id="risks">14. Risks, limitations and recommendations</h2>
+  <div class="card prose">{{ report.risks_and_limitations }}</div>
+  <div class="card prose">{{ report.recommendations }}</div>
+
+  <div class="banner warn">
+    <h3>Status of this document</h3>
+    <p style="margin:0">
+      This is a decision-support study, not a certified mineral resource statement.
+      JORC and NI 43-101 reporting require auditable methodology and sign-off by a
+      Competent or Qualified Person. The cutoff grade, the variogram and estimator
+      choice, and the pit economics are exactly where judgement and error live, and
+      a mining engineer should review all three before any of this informs a decision.
+    </p>
+  </div>
+
+  <footer>
+    <p>
+      {{ meta.project_name | default('Mine Design Report') }} &middot;
+      generated {{ meta.generated_at }} by the AI Mine Design System v{{ meta.version }}.
+      {% if provenance.calls %}
+      Model calls this run:
+      {% for c in provenance.calls %}<code>{{ c.label }}: {{ c.provider }}/{{ c.model }}{{ ' (failed)' if not c.ok }}</code>{% if not loop.last %}, {% endif %}{% endfor %}.
+      {% endif %}
+    </p>
+    <p>Report is fully self-contained: three.js, its orbit controls and Chart.js are
+    embedded, so it renders with no network connection.</p>
+  </footer>
+</div>
+
+<script type="application/json" id="payload">{{ payload_json }}</script>
+<script>{{ three_js }}</script>
+<script>{{ orbit_js }}</script>
+<script>{{ chart_js }}</script>
+<script>
+"use strict";
+const PAYLOAD = JSON.parse(document.getElementById("payload").textContent);
+const SCENE_DATA = PAYLOAD.scene || {};
+const CHARTS = PAYLOAD.charts || {};
+const TABLES = PAYLOAD.tables || {};
+
+/* ------------------------------------------------------------------ tables */
+function renderTable(elementId, key) {
+  const spec = TABLES[key];
+  const table = document.getElementById(elementId);
+  if (!table || !spec || !spec.columns) return;
+  const thead = table.querySelector("thead");
+  const tbody = table.querySelector("tbody");
+
+  thead.innerHTML = "<tr>" + spec.columns.map(c =>
+    `<th class="${typeof (spec.rows[0] || [])[spec.columns.indexOf(c)] === "number" ? "num" : ""}">${c}</th>`
+  ).join("") + "</tr>";
+
+  const draw = (rows) => {
+    const frag = document.createDocumentFragment();
+    rows.forEach(r => {
+      const tr = document.createElement("tr");
+      r.forEach(v => {
+        const td = document.createElement("td");
+        if (typeof v === "number") { td.className = "num"; td.textContent = v.toLocaleString(); }
+        else { td.textContent = v === null ? "" : v; }
+        tr.appendChild(td);
+      });
+      frag.appendChild(tr);
+    });
+    tbody.innerHTML = "";
+    tbody.appendChild(frag);
+  };
+
+  draw(spec.rows);
+  const counter = document.querySelector(`[data-count="${key}"]`);
+  const setCount = (n) => {
+    if (!counter) return;
+    counter.textContent = `${n.toLocaleString()} of ${spec.n_total.toLocaleString()} rows` +
+      (spec.truncated ? ` (table capped at ${spec.n_shown.toLocaleString()})` : "");
+  };
+  setCount(spec.rows.length);
+
+  const input = document.querySelector(`[data-filter="${key}"]`);
+  if (input) {
+    let timer = null;
+    input.addEventListener("input", () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        const q = input.value.trim().toLowerCase();
+        const rows = q ? spec.rows.filter(r => r.some(v => String(v).toLowerCase().includes(q)))
+                       : spec.rows;
+        draw(rows);
+        setCount(rows.length);
+      }, 140);
+    });
+  }
+}
+renderTable("table-composites", "composites");
+renderTable("table-blocks", "blocks");
+
+/* ------------------------------------------------------------------ charts */
+const CHART_FONT = { family: getComputedStyle(document.body).fontFamily, size: 12 };
+Chart.defaults.font = CHART_FONT;
+Chart.defaults.color = "#5c6773";
+
+function makeChart(id, config) {
+  const el = document.getElementById(id);
+  if (!el) return null;
+  return new Chart(el.getContext("2d"), config);
+}
+
+if (CHARTS.histogram) {
+  const h = CHARTS.histogram;
+  const datasets = [{
+    type: "bar", label: "Composite count", data: h.counts,
+    backgroundColor: "#3a9bb5", borderColor: "#2f6690", borderWidth: 1,
+    order: 2, yAxisID: "y",
+  }];
+  if (h.fitted) {
+    datasets.push({
+      type: "line", label: `Fitted ${h.fitted.model}`, data: h.fitted.values,
+      borderColor: "#c02f1d", backgroundColor: "transparent", borderWidth: 2,
+      pointRadius: 0, tension: .35, order: 1, yAxisID: "y",
+    });
+  }
+  makeChart("chart-histogram", {
+    data: { labels: h.labels, datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      scales: {
+        x: { title: { display: true, text: "Grade" }, ticks: { maxTicksLimit: 12 } },
+        y: { title: { display: true, text: "Frequency" }, beginAtZero: true },
+      },
+      plugins: { legend: { position: "top" } },
+    },
+  });
+}
+
+if (CHARTS.cumulative) {
+  const c = CHARTS.cumulative;
+  makeChart("chart-cumulative", {
+    data: {
+      labels: c.labels,
+      datasets: [
+        { type: "bar", label: "Frequency", data: c.counts, backgroundColor: "#a8c256",
+          yAxisID: "y", order: 2 },
+        { type: "line", label: "Cumulative %", data: c.cumulative_pct, borderColor: "#0f5c8c",
+          backgroundColor: "transparent", borderWidth: 2, pointRadius: 0, tension: .2,
+          yAxisID: "y1", order: 1 },
+      ],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      scales: {
+        x: { title: { display: true, text: "Grade" }, ticks: { maxTicksLimit: 12 } },
+        y: { title: { display: true, text: "Frequency" }, beginAtZero: true },
+        y1: { position: "right", min: 0, max: 100, grid: { drawOnChartArea: false },
+              title: { display: true, text: "Cumulative %" } },
+      },
+    },
+  });
+}
+
+if (CHARTS.topcut && CHARTS.topcut.labels.length) {
+  const t = CHARTS.topcut;
+  makeChart("chart-topcut", {
+    type: "bar",
+    data: {
+      labels: t.labels,
+      datasets: [
+        { label: "Before top cut", data: t.before, backgroundColor: "rgba(224,92,62,.65)" },
+        { label: "After top cut", data: t.after, backgroundColor: "rgba(58,155,181,.75)" },
+      ],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      scales: {
+        x: { title: { display: true, text: "Grade" }, ticks: { maxTicksLimit: 12 } },
+        y: { title: { display: true, text: "Frequency" }, type: "logarithmic" },
+      },
+    },
+  });
+}
+
+if (CHARTS.variogram && CHARTS.variogram.series.length) {
+  const palette = ["#0f5c8c", "#c02f1d", "#1b6e3c", "#b26a00"];
+  const datasets = [];
+  CHARTS.variogram.series.forEach((s, i) => {
+    datasets.push({
+      type: "scatter", label: `${s.name} (experimental)`, data: s.experimental,
+      backgroundColor: palette[i % palette.length], pointRadius: 4,
+    });
+    if (s.model_curve && s.model_curve.length) {
+      datasets.push({
+        type: "line", label: `${s.name} (${s.fit ? s.fit.model : "fitted"})`,
+        data: s.model_curve, borderColor: palette[i % palette.length],
+        backgroundColor: "transparent", borderWidth: 2, pointRadius: 0,
+        borderDash: [6, 4], tension: .1,
+      });
+    }
+  });
+  makeChart("chart-variogram", {
+    data: { datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      scales: {
+        x: { type: "linear", title: { display: true, text: "Lag distance h (m)" } },
+        y: { title: { display: true, text: "Semivariance γ(h)" }, beginAtZero: true },
+      },
+    },
+  });
+}
+
+if (CHARTS.grade_tonnage && CHARTS.grade_tonnage.cutoffs.length) {
+  const g = CHARTS.grade_tonnage;
+  makeChart("chart-gradetonnage", {
+    data: {
+      labels: g.cutoffs,
+      datasets: [
+        { type: "line", label: "Tonnes above cutoff (Mt)",
+          data: g.tonnes.map(t => t / 1e6), borderColor: "#0f5c8c",
+          backgroundColor: "rgba(15,92,140,.12)", fill: true, tension: .25,
+          pointRadius: 0, yAxisID: "y" },
+        { type: "line", label: "Mean grade above cutoff", data: g.mean_grade,
+          borderColor: "#c02f1d", backgroundColor: "transparent", borderWidth: 2,
+          tension: .25, pointRadius: 0, yAxisID: "y1" },
+      ],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      scales: {
+        x: { title: { display: true, text: "Cutoff grade" }, ticks: { maxTicksLimit: 12 } },
+        y: { title: { display: true, text: "Tonnes (Mt)" }, beginAtZero: true },
+        y1: { position: "right", grid: { drawOnChartArea: false },
+              title: { display: true, text: "Mean grade" }, beginAtZero: true },
+      },
+    },
+  });
+}
+
+if (CHARTS.nested_shells && CHARTS.nested_shells.revenue_factors.length) {
+  const s = CHARTS.nested_shells;
+  makeChart("chart-shells", {
+    data: {
+      labels: s.revenue_factors,
+      datasets: [
+        { type: "bar", label: "Ore (Mt)", data: s.ore_tonnes.map(t => t / 1e6),
+          backgroundColor: "#3a9bb5", yAxisID: "y" },
+        { type: "bar", label: "Waste (Mt)", data: s.waste_tonnes.map(t => t / 1e6),
+          backgroundColor: "#c8ced3", yAxisID: "y" },
+        { type: "line", label: "Strip ratio", data: s.strip_ratio, borderColor: "#c02f1d",
+          backgroundColor: "transparent", borderWidth: 2, tension: .2, yAxisID: "y1" },
+      ],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      scales: {
+        x: { title: { display: true, text: "Revenue factor (fraction of the assumed price)" },
+             stacked: true },
+        y: { title: { display: true, text: "Tonnes (Mt)" }, stacked: true, beginAtZero: true },
+        y1: { position: "right", grid: { drawOnChartArea: false },
+              title: { display: true, text: "Strip ratio" }, beginAtZero: true },
+      },
+    },
+  });
+}
+
+/* --------------------------------------------------------------- 3D viewer */
+(function () {
+  const shell = document.getElementById("viewer-shell");
+  function fail(message) {
+    if (!shell) return;
+    shell.innerHTML = '<div style="color:#dbe3ea;padding:36px;font-size:14px;line-height:1.7">' +
+      '<strong>The 3D viewer could not start.</strong><br>' + message +
+      '<br><br>Every figure in this report is also available in the charts and tables above.' +
+      '</div>';
+  }
+  const layers = SCENE_DATA.layers || {};
+  if (!Object.keys(layers).length) { fail("No 3D layers were produced for this run."); return; }
+  if (typeof THREE === "undefined") { fail("The 3D library did not load."); return; }
+  if (typeof THREE.OrbitControls === "undefined") { fail("The orbit controls did not load."); return; }
+
+  const canvas = document.getElementById("viewer-canvas");
+  if (!canvas || typeof canvas.getContext !== "function") {
+    fail("The viewer canvas is missing from the page.");
+    return;
+  }
+  let renderer;
+  try {
+    renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+  } catch (err) {
+    fail("WebGL is unavailable in this browser or is disabled. (" + err.message + ")");
+    return;
+  }
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x10151b);
+
+  const camera = new THREE.PerspectiveCamera(50, 1, 0.5, 100000);
+  const controls = new THREE.OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.08;
+
+  scene.add(new THREE.AmbientLight(0xffffff, 0.68));
+  const key = new THREE.DirectionalLight(0xffffff, 0.75);
+  key.position.set(1, 1, 1.4);
+  scene.add(key);
+  const fill = new THREE.DirectionalLight(0x88aaff, 0.3);
+  fill.position.set(-1, -0.6, -0.8);
+  scene.add(fill);
+
+  // Z is elevation in mine coordinates, so tell three.js which way is up
+  camera.up.set(0, 0, 1);
+  controls.object.up.set(0, 0, 1);
+
+  const groups = {};
+  const bbox = new THREE.Box3();
+
+  function colorArray(hexList) {
+    const arr = new Float32Array(hexList.length * 3);
+    const c = new THREE.Color();
+    hexList.forEach((hex, i) => {
+      c.set(hex);
+      arr[i * 3] = c.r; arr[i * 3 + 1] = c.g; arr[i * 3 + 2] = c.b;
+    });
+    return arr;
+  }
+
+  function buildSegments(flat, colors, widthColors) {
+    const geom = new THREE.BufferGeometry();
+    geom.setAttribute("position", new THREE.Float32BufferAttribute(flat, 3));
+    if (colors) {
+      // one colour per segment: duplicate for both endpoints
+      const per = new Float32Array(flat.length);
+      const c = new THREE.Color();
+      for (let s = 0; s < colors.length; s++) {
+        c.set(colors[s]);
+        for (let k = 0; k < 2; k++) {
+          const base = (s * 2 + k) * 3;
+          if (base + 2 < per.length) {
+            per[base] = c.r; per[base + 1] = c.g; per[base + 2] = c.b;
+          }
+        }
+      }
+      geom.setAttribute("color", new THREE.Float32BufferAttribute(per, 3));
+    }
+    const mat = new THREE.LineBasicMaterial({
+      vertexColors: !!colors, color: colors ? 0xffffff : 0x9e9e9e,
+    });
+    return new THREE.LineSegments(geom, mat);
+  }
+
+  function buildPoints(positions, colors, size) {
+    const geom = new THREE.BufferGeometry();
+    geom.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+    geom.setAttribute("color", new THREE.BufferAttribute(colorArray(colors), 3));
+    const mat = new THREE.PointsMaterial({ size: size || 3, vertexColors: true,
+                                           sizeAttenuation: true });
+    return new THREE.Points(geom, mat);
+  }
+
+  function buildMesh(vertices, faces, color, opacity) {
+    const geom = new THREE.BufferGeometry();
+    geom.setAttribute("position", new THREE.Float32BufferAttribute(vertices, 3));
+    geom.setIndex(faces);
+    geom.computeVertexNormals();
+    const mat = new THREE.MeshStandardMaterial({
+      color: new THREE.Color(color), transparent: opacity < 1, opacity: opacity,
+      side: THREE.DoubleSide, roughness: .75, metalness: .05, depthWrite: opacity > .8,
+    });
+    return new THREE.Mesh(geom, mat);
+  }
+
+  function buildBlocks(positions, colors, blockSize, opacity) {
+    const n = positions.length / 3;
+    const geom = new THREE.BoxGeometry(blockSize[0], blockSize[1], blockSize[2]);
+    const mat = new THREE.MeshStandardMaterial({
+      roughness: .85, metalness: .03,
+      transparent: (opacity || 1) < 1, opacity: opacity || 1,
+      // The edge overlay sits exactly on the box faces, so without this the
+      // filled faces and the coincident black edge lines z-fight and the
+      // edges vanish or flicker. Pushing the filled faces back a hair in
+      // depth lets the true-depth edge lines win cleanly.
+      polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1,
+    });
+    const mesh = new THREE.InstancedMesh(geom, mat, n);
+    const dummy = new THREE.Object3D();
+    const c = new THREE.Color();
+    for (let i = 0; i < n; i++) {
+      dummy.position.set(positions[i * 3], positions[i * 3 + 1], positions[i * 3 + 2]);
+      dummy.updateMatrix();
+      mesh.setMatrixAt(i, dummy.matrix);
+      c.set(colors[i] || "#888888");
+      mesh.setColorAt(i, c);
+    }
+    mesh.instanceMatrix.needsUpdate = true;
+    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+    // This three.js build derives the bounding sphere from the base box only, so
+    // the entire instanced layer gets culled as soon as the origin leaves the
+    // frustum. Culling per layer buys nothing at these counts; switch it off.
+    mesh.frustumCulled = false;
+
+    // Block boundaries. InstancedMesh always draws its geometry as triangles,
+    // regardless of the material assigned to it -- an EdgesGeometry cannot be
+    // instanced through InstancedMesh, it would draw as garbage triangles, not
+    // lines. Instead the box's 12 edges are computed once as a flat, unindexed
+    // vertex pair list, then translated and merged into one plain LineSegments
+    // per block, which is what a line material actually knows how to draw.
+    const edgeTemplate = new THREE.EdgesGeometry(geom).attributes.position.array;
+    const vertsPerBlock = edgeTemplate.length; // 24 for a box: 12 edges x 2 verts x 3
+    const edgePositions = new Float32Array(n * vertsPerBlock);
+    for (let i = 0; i < n; i++) {
+      const cx = positions[i * 3], cy = positions[i * 3 + 1], cz = positions[i * 3 + 2];
+      const base = i * vertsPerBlock;
+      for (let k = 0; k < vertsPerBlock; k += 3) {
+        edgePositions[base + k] = edgeTemplate[k] + cx;
+        edgePositions[base + k + 1] = edgeTemplate[k + 1] + cy;
+        edgePositions[base + k + 2] = edgeTemplate[k + 2] + cz;
+      }
+    }
+    const edgeGeom = new THREE.BufferGeometry();
+    edgeGeom.setAttribute("position", new THREE.BufferAttribute(edgePositions, 3));
+    const edgeMat = new THREE.LineBasicMaterial({
+      color: 0x000000, transparent: true, opacity: 0.4,
+    });
+    const edges = new THREE.LineSegments(edgeGeom, edgeMat);
+    edges.frustumCulled = false;
+
+    const group = new THREE.Group();
+    group.add(mesh);
+    group.add(edges);
+    return group;
+  }
+
+  const drillholeObjects = {};
+
+  Object.entries(layers).forEach(([name, layer]) => {
+    let object = null;
+    try {
+      if (layer.kind === "tubes") {
+        const holder = new THREE.Group();
+        const traceLines = buildSegments(layer.traces, null);
+        traceLines.material.color.set(0x44525f);
+        holder.add(traceLines);
+        const byGrade = buildSegments(layer.segments, layer.grade_colors);
+        const byRock = buildSegments(layer.segments, layer.rock_colors);
+        byRock.visible = false;
+        holder.add(byGrade); holder.add(byRock);
+        drillholeObjects.grade = byGrade;
+        drillholeObjects.rock = byRock;
+        object = holder;
+      } else if (layer.kind === "points") {
+        object = buildPoints(layer.positions, layer.colors, layer.size);
+      } else if (layer.kind === "mesh") {
+        object = buildMesh(layer.vertices, layer.faces, layer.color,
+                           layer.opacity === undefined ? 1 : layer.opacity);
+      } else if (layer.kind === "blocks") {
+        object = buildBlocks(layer.positions, layer.colors, layer.block_size, layer.opacity);
+      } else if (layer.kind === "polylines") {
+        const holder = new THREE.Group();
+        layer.polylines.forEach(flat => {
+          const seg = buildSegments(flat, null);
+          seg.material.color.set(layer.color || 0xffd54f);
+          holder.add(seg);
+        });
+        object = holder;
+      } else if (layer.kind === "banded_polylines") {
+        // one colour per ring, e.g. the pit shell's elevation-banded contours
+        const holder = new THREE.Group();
+        layer.polylines.forEach((flat, i) => {
+          const seg = buildSegments(flat, null);
+          seg.material.color.set((layer.colors && layer.colors[i]) || layer.color || 0xffd54f);
+          seg.material.linewidth = 2;
+          holder.add(seg);
+        });
+        object = holder;
+      }
+    } catch (err) {
+      console.warn("layer failed to build:", name, err);
+    }
+    if (!object) return;
+    object.visible = layer.visible !== false;
+    object.name = name;
+    scene.add(object);
+    groups[name] = { object, layer };
+    if (layer.kind === "blocks") {
+      // expandByObject cannot see instance transforms in this build
+      const p = layer.positions;
+      const v = new THREE.Vector3();
+      for (let i = 0; i < p.length; i += 3) bbox.expandByPoint(v.set(p[i], p[i+1], p[i+2]));
+    } else {
+      bbox.expandByObject(object);
+    }
+  });
+
+  const centre = bbox.getCenter(new THREE.Vector3());
+  const size = bbox.getSize(new THREE.Vector3());
+  const radius = Math.max(size.x, size.y, size.z) || 100;
+
+  function setView(mode) {
+    const d = radius * 1.5;
+    if (mode === "plan") camera.position.set(centre.x, centre.y, centre.z + d);
+    else if (mode === "iso" || mode === "fit")
+      camera.position.set(centre.x + d * .8, centre.y - d * .8, centre.z + d * .6);
+    controls.target.copy(centre);
+    controls.update();
+  }
+
+  const sectionLayer = layers.sections;
+  const sectionSelect = document.getElementById("section-select");
+  if (sectionLayer && sectionSelect) {
+    sectionLayer.sections.forEach((s, i) => {
+      const opt = document.createElement("option");
+      opt.value = i;
+      opt.textContent = `Section ${s.section_id} (${s.section_s.toFixed(0)} m)`;
+      sectionSelect.appendChild(opt);
+    });
+  } else if (sectionSelect) {
+    sectionSelect.style.display = "none";
+  }
+
+  function setSectionView() {
+    if (!sectionLayer || !sectionSelect) return;
+    const s = sectionLayer.sections[sectionSelect.value | 0];
+    if (!s) return;
+    const strike = sectionLayer.strike_dir;
+    const across = sectionLayer.across_dir;
+    // stand off along strike, looking down the section plane normal
+    const origin = new THREE.Vector3(
+      strike[0] * s.section_s, strike[1] * s.section_s, centre.z);
+    const d = radius * 1.2;
+    camera.position.set(origin.x + strike[0] * d, origin.y + strike[1] * d, centre.z);
+    controls.target.set(origin.x, origin.y, centre.z);
+    camera.up.set(0, 0, 1);
+    controls.update();
+  }
+
+  document.querySelectorAll("#view-controls button").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const mode = btn.dataset.view;
+      if (mode === "section") setSectionView(); else setView(mode);
+    });
+  });
+  if (sectionSelect) sectionSelect.addEventListener("change", setSectionView);
+
+  const holeColor = document.getElementById("hole-color");
+  if (holeColor) {
+    holeColor.addEventListener("change", () => {
+      if (!drillholeObjects.grade) return;
+      const useGrade = holeColor.value === "grade";
+      drillholeObjects.grade.visible = useGrade;
+      drillholeObjects.rock.visible = !useGrade;
+    });
+  }
+
+  // layer panel, grouped the way the workflow is grouped
+  const panel = document.getElementById("layer-panel");
+  const byGroup = {};
+  Object.entries(groups).forEach(([name, g]) => {
+    const group = g.layer.group || "general";
+    (byGroup[group] = byGroup[group] || []).push([name, g]);
+  });
+  Object.entries(byGroup).forEach(([group, items]) => {
+    const h = document.createElement("h4");
+    h.textContent = group;
+    panel.appendChild(h);
+    items.forEach(([name, g]) => {
+      const label = document.createElement("label");
+      const cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.checked = g.object.visible;
+      cb.addEventListener("change", () => { g.object.visible = cb.checked; });
+      const span = document.createElement("span");
+      span.textContent = g.layer.label || name;
+      const meta = document.createElement("span");
+      meta.className = "meta";
+      const count = g.layer.n_blocks || g.layer.n_points || g.layer.n_faces ||
+                    g.layer.n_intervals || g.layer.n_levels || "";
+      meta.textContent = count ? count.toLocaleString() : "";
+      label.appendChild(cb); label.appendChild(span); label.appendChild(meta);
+      panel.appendChild(label);
+    });
+  });
+
+  // grade legend, using the same breakpoints as the report
+  const ramp = SCENE_DATA.grade_ramp;
+  const legend = document.getElementById("legend");
+  if (ramp && ramp.colors) {
+    legend.innerHTML = "<div style='margin-bottom:5px;font-weight:700'>Grade</div>" +
+      ramp.colors.map((c, i) =>
+        `<div class="row"><span class="swatch" style="background:${c}"></span>` +
+        `${ramp.breaks[i].toFixed(2)} &ndash; ${ramp.breaks[i + 1].toFixed(2)}</div>`
+      ).reverse().join("");
+  }
+
+  function resize() {
+    const w = shell.clientWidth;
+    const h = Math.max(420, Math.round(w * 0.55));
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+  }
+  window.addEventListener("resize", resize);
+  resize();
+  setView("iso");
+
+  // ---------------------------------------------------------- axis gizmo
+  // A small XYZ orientation triad, bottom-left, that mirrors the main
+  // camera's rotation every frame so it always shows which way is currently
+  // "up" and which way the view is facing -- the standard CAD-viewport cue.
+  let gizmo = null;
+  const gizmoCanvas = document.getElementById("gizmo-canvas");
+  if (gizmoCanvas) {
+    try {
+      const gRenderer = new THREE.WebGLRenderer({ canvas: gizmoCanvas, antialias: true, alpha: true });
+      gRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      gRenderer.setSize(92, 92, false);
+
+      const gScene = new THREE.Scene();
+      const gCamera = new THREE.OrthographicCamera(-1.7, 1.7, 1.7, -1.7, 0.1, 10);
+      gCamera.up.set(0, 0, 1);
+
+      function axisLabel(text, color) {
+        const c = document.createElement("canvas");
+        c.width = 64; c.height = 64;
+        const ctx = c.getContext("2d");
+        ctx.fillStyle = color;
+        ctx.beginPath(); ctx.arc(32, 32, 17, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = "#0b0e13";
+        ctx.font = "bold 28px ui-monospace, Consolas, monospace";
+        ctx.textAlign = "center"; ctx.textBaseline = "middle";
+        ctx.fillText(text, 32, 33);
+        const tex = new THREE.CanvasTexture(c);
+        const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false }));
+        sprite.scale.set(0.55, 0.55, 1);
+        return sprite;
+      }
+
+      const axes = [
+        { dir: [1, 0, 0], color: "#e05c3e", label: "X" },
+        { dir: [0, 1, 0], color: "#5fb95f", label: "Y" },
+        { dir: [0, 0, 1], color: "#4a90d9", label: "Z" },
+      ];
+      axes.forEach(a => {
+        const geom = new THREE.BufferGeometry();
+        geom.setAttribute("position", new THREE.Float32BufferAttribute(
+          [0, 0, 0, a.dir[0], a.dir[1], a.dir[2]], 3));
+        const line = new THREE.Line(geom, new THREE.LineBasicMaterial({ color: a.color }));
+        gScene.add(line);
+        const sprite = axisLabel(a.label, a.color);
+        sprite.position.set(a.dir[0] * 1.35, a.dir[1] * 1.35, a.dir[2] * 1.35);
+        gScene.add(sprite);
+      });
+
+      gizmo = { renderer: gRenderer, scene: gScene, camera: gCamera };
+    } catch (err) {
+      console.warn("axis gizmo failed to start:", err);
+    }
+  }
+
+  (function animate() {
+    requestAnimationFrame(animate);
+    controls.update();
+    renderer.render(scene, camera);
+    if (gizmo) {
+      // same rotation as the main camera, fixed distance from the origin --
+      // an orthographic camera's projection depends only on orientation, so
+      // this reproduces the main view's facing direction exactly
+      const dir = new THREE.Vector3().subVectors(camera.position, controls.target).normalize();
+      gizmo.camera.position.copy(dir.multiplyScalar(4));
+      gizmo.camera.up.copy(camera.up);
+      gizmo.camera.lookAt(0, 0, 0);
+      gizmo.renderer.render(gizmo.scene, gizmo.camera);
+    }
+  })();
+})();
+</script>
+</body>
+</html>
